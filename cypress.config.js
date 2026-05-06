@@ -1,10 +1,9 @@
-import { defineConfig } from "cypress";
-import * as dotenv from "dotenv";
-import * as fs from "fs";
+// @ts-check
+const { defineConfig } = require("cypress");
+require("dotenv").config();
+const fs = require("fs");
 
-dotenv.config();
-
-export default defineConfig({
+module.exports = defineConfig({
   defaultCommandTimeout: 10000,
   requestTimeout: 15000,
   responseTimeout: 15000,
@@ -30,62 +29,49 @@ export default defineConfig({
 
   e2e: {
     baseUrl: process.env.BASE_URL || "https://the-internet.herokuapp.com",
-
-    // ── Include ALL spec folders ──────────────────────────────────────────
     specPattern: [
-      "cypress/e2e/**/*.cy.ts",
-      "cypress/api/**/*.cy.ts",
-      "cypress/accessibility/**/*.cy.ts",
-      "cypress/visual/**/*.cy.ts",
+      "cypress/e2e/**/*.cy.js",
+      "cypress/api/**/*.cy.js",
+      "cypress/accessibility/**/*.cy.js",
+      "cypress/visual/**/*.cy.js",
     ],
-
-    supportFile: "cypress/support/e2e.ts",
+    supportFile: "cypress/support/e2e.js",
     fixturesFolder: "cypress/fixtures",
-
     reporter: "cypress-mochawesome-reporter",
     reporterOptions: {
       reportDir: "mochawesome-report",
       charts: true,
-      reportPageTitle: "QA Pulse by SK — Cypress Test Report",
+      reportPageTitle: "QA Pulse by SK — Cypress Report",
       embeddedScreenshots: true,
       inlineAssets: true,
       saveAllAttempts: true,
     },
-
     setupNodeEvents(on, config) {
-      // ── Mochawesome ───────────────────────────────────────────────────────
       require("cypress-mochawesome-reporter/plugin")(on);
-
-      // ── Allure ────────────────────────────────────────────────────────────
       try {
         const allureCypress = require("allure-cypress/reporter");
         allureCypress.allureCypress(on, config, { resultsDir: "allure-results" });
       } catch {
         console.log("Allure reporter not available — skipping");
       }
-
-      // ── cypress-grep ──────────────────────────────────────────────────────
       require("@cypress/grep/src/plugin")(config);
-
-      // ── Tasks ─────────────────────────────────────────────────────────────
       on("task", {
-        createDir(dir: string) {
+        createDir(dir) {
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
           return null;
         },
-        log(message: string) {
+        log(message) {
           console.log(message);
           return null;
         },
       });
-
       return config;
     },
   },
 
   component: {
     devServer: { framework: "react", bundler: "vite" },
-    specPattern: "cypress/component/**/*.cy.ts",
-    supportFile: "cypress/support/component.ts",
+    specPattern: "cypress/component/**/*.cy.js",
+    supportFile: "cypress/support/component.js",
   },
 });
