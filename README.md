@@ -1,0 +1,1 @@
+# qapulsebysk-cypress-boilerplate
