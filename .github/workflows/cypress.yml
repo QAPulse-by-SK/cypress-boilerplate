@@ -107,8 +107,77 @@ jobs:
         uses: thollander/actions-comment-pull-request@main
         with:
           message: |
-            ## 🎯 Cypress Test Report
+            ## 🌲 Cypress Test Report
             [View Mochawesome Report](${{ steps.deployment.outputs.page_url }})
             Created by **QA Pulse by SK** · [skakarh.com](https://www.skakarh.com)
           comment_tag: cypress_report
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Slack Notification ─────────────────────────────────────────────────
+      # To enable: add SLACK_WEBHOOK_URL to GitHub repo secrets
+      # How to get webhook: https://api.slack.com/messaging/webhooks
+      - name: Notify Slack — Success
+        if: success() && secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "✅ *Cypress Tests Passed*",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "✅ Cypress Tests Passed" }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Repo:*\n<https://github.com/${{ github.repository }}|${{ github.repository }}>" },
+                    { "type": "mrkdwn", "text": "*Branch:*\n`${{ github.ref_name }}`" },
+                    { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                    { "type": "mrkdwn", "text": "*Report:*\n<${{ steps.deployment.outputs.page_url }}|View Mochawesome Report>" }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": "🎯 *QA Pulse by SK* · <https://www.skakarh.com|skakarh.com>" }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Notify Slack — Failure
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "❌ *Cypress Tests Failed*",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "❌ Cypress Tests Failed" }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Repo:*\n<https://github.com/${{ github.repository }}|${{ github.repository }}>" },
+                    { "type": "mrkdwn", "text": "*Branch:*\n`${{ github.ref_name }}`" },
+                    { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                    { "type": "mrkdwn", "text": "*Run:*\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Failed Run>" }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": "🎯 *QA Pulse by SK* · <https://www.skakarh.com|skakarh.com>" }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
