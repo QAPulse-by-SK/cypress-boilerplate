@@ -1,0 +1,53 @@
+trigger:
+  branches:
+    include: [master, main]
+pr:
+  branches:
+    include: [master, main]
+pool:
+  vmImage: "ubuntu-latest"
+variables:
+  NODEJS_VERSION: "20.x"
+  BASE_URL: "https://the-internet.herokuapp.com"
+stages:
+  - stage: QualityChecks
+    displayName: "Lint & Typecheck"
+    jobs:
+      - job: Lint
+        steps:
+          - task: NodeTool@0
+            inputs: { versionSpec: $(NODEJS_VERSION) }
+          - script: npm ci
+          - script: npm run lint
+          - script: npm run typecheck
+  - stage: TestSmoke
+    displayName: "Smoke Tests"
+    dependsOn: QualityChecks
+    jobs:
+      - job: Smoke
+        steps:
+          - task: NodeTool@0
+            inputs: { versionSpec: $(NODEJS_VERSION) }
+          - script: npm ci
+          - script: npm run test:smoke
+            env: { CI: true, CYPRESS_BASE_URL: $(BASE_URL) }
+          - task: PublishPipelineArtifact@1
+            condition: always()
+            inputs:
+              targetPath: "mochawesome-report"
+              artifact: "cypress-smoke-report"
+  - stage: TestRegression
+    displayName: "Full Regression"
+    dependsOn: TestSmoke
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    jobs:
+      - job: Chrome
+        steps:
+          - script: npm ci
+          - script: npm run test:chrome
+            env: { CI: true }
+      - job: Firefox
+        steps:
+          - script: npm ci
+          - script: npm run test:firefox
+            env: { CI: true }

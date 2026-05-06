@@ -1,0 +1,17 @@
+node_modules/
+.env
+cypress.env.json
+
+cypress/videos/
+cypress/screenshots/
+mochawesome-report/*
+!mochawesome-report/.gitkeep
+allure-results/
+allure-report/
+test-results/
+
+cypress/visual/__snapshots__/**/*.diff.png
+cypress/visual/__snapshots__/**/*.received.png
+
+.DS_Store
+*.log

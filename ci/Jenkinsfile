@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+    environment {
+        NODEJS_VERSION = '20'
+        BASE_URL = "${env.BASE_URL ?: 'https://the-internet.herokuapp.com'}"
+    }
+    tools { nodejs "${NODEJS_VERSION}" }
+    stages {
+        stage('Checkout') { steps { checkout scm } }
+        stage('Install')  { steps { sh 'npm ci' } }
+        stage('Lint')     { steps { sh 'npm run lint' } }
+        stage('Test: Smoke') {
+            steps { sh 'npm run test:smoke' }
+            post {
+                always {
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true,
+                        reportDir: 'mochawesome-report', reportFiles: 'index.html',
+                        reportName: 'Cypress Smoke Report'])
+                }
+            }
+        }
+        stage('Test: Regression') {
+            when { branch 'master' }
+            steps { sh 'npm run test:regression' }
+        }
+        stage('Generate Reports') {
+            steps {
+                sh 'npm run report:mochawesome'
+                sh 'npm run report:allure:generate'
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'mochawesome-report/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'allure-report/**', allowEmptyArchive: true
+        }
+        success { echo '✅ All tests passed! — QA Pulse by SK · www.skakarh.com' }
+        failure { echo '❌ Tests failed! Check the Mochawesome report.' }
+    }
+}

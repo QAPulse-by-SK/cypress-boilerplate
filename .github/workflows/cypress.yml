@@ -1,0 +1,114 @@
+name: Cypress Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  checks: write
+  pull-requests: write
+
+env:
+  NODEJS_VERSION: 20
+
+jobs:
+  cypress_test:
+    name: Cypress (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODEJS_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Cypress (${{ matrix.browser }})
+        uses: cypress-io/github-action@v6
+        with:
+          browser: ${{ matrix.browser }}
+          record: false
+        env:
+          CI: true
+          CYPRESS_BASE_URL: ${{ vars.BASE_URL || 'https://the-internet.herokuapp.com' }}
+
+      - name: Upload Mochawesome report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochawesome-${{ matrix.browser }}
+          path: mochawesome-report/
+          retention-days: 10
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-${{ matrix.browser }}
+          path: allure-results/
+          retention-days: 10
+
+  reporting:
+    name: Merge Reports & Publish
+    if: always()
+    needs: cypress_test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODEJS_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all Mochawesome reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mochawesome-*
+          merge-multiple: true
+          path: mochawesome-report
+
+      - name: Merge Mochawesome reports
+        run: npm run report:mochawesome
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: mochawesome-report
+          retention-days: 14
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Comment PR with report link
+        if: always() && github.event_name == 'pull_request'
+        uses: thollander/actions-comment-pull-request@main
+        with:
+          message: |
+            ## 🎯 Cypress Test Report
+            [View Mochawesome Report](${{ steps.deployment.outputs.page_url }})
+            Created by **QA Pulse by SK** · [skakarh.com](https://www.skakarh.com)
+          comment_tag: cypress_report
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
